@@ -1,4 +1,4 @@
-# 音准 — Chinesisch Ausspracheübung
+# 墨声 — Chinesisch Ausspracheübung
 
 Eine reine Browser-App zum Üben der Aussprache von chinesischen Vokabeln und Sätzen:
 selbst eingeben, anhören (Sprachausgabe), nachsprechen (Mikrofon) und automatisch
@@ -16,6 +16,9 @@ bewerten lassen. Kein Server, kein Build-Schritt, keine laufenden Kosten.
 - **Browser-Unterstützung:** `SpeechRecognition` ist derzeit im Wesentlichen nur in
   Chrome und Edge (Desktop und Android) verfügbar, nicht in Firefox oder Safari.
   Die App zeigt einen Hinweis an, wenn der Browser das nicht unterstützt.
+- **Pinyin-Anzeige:** Der erkannte Text wird zusätzlich mit Tonzeichen als Pinyin
+  angezeigt, umgewandelt über die Bibliothek [pinyin-pro](https://pinyin-pro.cn)
+  (per CDN eingebunden, keine Installation nötig).
 - Die Vokabelliste wird im `localStorage` des Browsers gespeichert (pro Gerät/Browser).
 
 ## Lokal testen

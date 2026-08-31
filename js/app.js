@@ -237,8 +237,23 @@ function showResult(result) {
   }
 
   el.resultTranscript.textContent = result.transcript
-    ? `Erkannt: „${result.transcript}“`
+    ? `Erkannt: „${result.transcript}“${formatPinyinSuffix(result.transcript)}`
     : result.note || 'Nichts erkannt.';
+}
+
+function formatPinyinSuffix(text) {
+  const py = pinyinOf(text);
+  return py ? ` (${py})` : '';
+}
+
+function pinyinOf(text) {
+  if (!text || !window.pinyinPro || typeof window.pinyinPro.pinyin !== 'function') return '';
+  try {
+    return window.pinyinPro.pinyin(text, { toneType: 'symbol' });
+  } catch (e) {
+    console.warn('Pinyin-Umwandlung fehlgeschlagen:', e);
+    return '';
+  }
 }
 
 function feedbackFor(score) {
