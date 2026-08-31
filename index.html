@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>音准 · Chinesisch Ausspracheübung</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app">
+
+  <header class="app-header">
+    <div class="mark">音</div>
+    <h1>Ausspracheübung Chinesisch</h1>
+  </header>
+  <p class="app-subtitle">
+    Vokabeln und Sätze anhören, nachsprechen und die eigene Aussprache bewerten lassen —
+    läuft komplett im Browser, ohne Server und ohne Kosten.
+  </p>
+
+  <div id="browserWarning" class="browser-warning">
+    Dieser Browser unterstützt die Spracherkennung (Web Speech API) nicht oder nur eingeschränkt.
+    Für die beste Erfahrung <strong>Chrome</strong> oder <strong>Edge</strong> auf Desktop oder Android verwenden.
+  </div>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-view="practice">Üben</button>
+    <button class="tab-btn" data-view="vocab">Vokabeln</button>
+  </nav>
+
+  <!-- ---------------- Übungs-Ansicht ---------------- -->
+  <section id="view-practice" class="view active">
+    <div class="practice-card">
+      <div class="progress-row">
+        <span>Übung</span>
+        <span class="count" id="progressCount">– / –</span>
+      </div>
+
+      <p class="hanzi-display" id="hanziDisplay">–</p>
+      <p class="pinyin-line" id="pinyinLine"></p>
+      <p class="translation-line" id="translationLine"></p>
+      <button class="reveal-toggle" id="revealToggle">Pinyin &amp; Übersetzung anzeigen</button>
+
+      <div class="controls-row">
+        <button class="action primary" id="playBtn">▶ Anhören</button>
+        <button class="action record" id="recordBtn">● Aufnehmen</button>
+        <button class="action ghost" id="retryBtn" style="display:none;">↺ Erneut versuchen</button>
+      </div>
+      <p class="status-line" id="statusLine"></p>
+
+      <div class="result" id="resultBox">
+        <div class="seal-stamp">
+          <span class="score-num" id="scoreNum">–</span>
+          <span class="score-unit">Punkte</span>
+        </div>
+        <div class="result-body">
+          <p class="result-feedback" id="resultFeedback"></p>
+          <p class="diff-line" id="diffLine"></p>
+          <p class="result-transcript" id="resultTranscript"></p>
+        </div>
+      </div>
+
+      <div class="nav-row">
+        <button class="action ghost" id="prevBtn">← Vorherige</button>
+        <button class="action ghost" id="nextBtn">Nächste →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------------- Vokabel-Ansicht ---------------- -->
+  <section id="view-vocab" class="view">
+    <div class="panel">
+      <h2>Neuen Eintrag hinzufügen</h2>
+      <p class="hint">Pinyin und Übersetzung sind optional, helfen aber beim Üben.</p>
+      <div class="field-row">
+        <input type="text" id="newHanzi" placeholder="汉字 (Pflichtfeld)" />
+        <input type="text" id="newPinyin" placeholder="Pinyin" />
+        <input type="text" id="newTranslation" placeholder="Übersetzung" />
+        <button class="action primary" id="addBtn">Hinzufügen</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Mehrere Einträge auf einmal importieren</h2>
+      <p class="hint">Ein Eintrag pro Zeile, Format: <code>汉字 | Pinyin | Übersetzung</code> (Pinyin/Übersetzung optional)</p>
+      <textarea id="importText" placeholder="你好 | nǐ hǎo | Hallo&#10;谢谢 | xièxie | Danke"></textarea>
+      <div class="controls-row">
+        <button class="action primary" id="importBtn">Importieren</button>
+        <button class="action ghost" id="exportBtn">Als JSON exportieren</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Meine Liste</h2>
+      <ul class="vocab-list" id="vocabList"></ul>
+    </div>
+  </section>
+
+  <footer class="app-footer">
+    Bewertung aktuell über die kostenlose Web-Speech-API des Browsers (Textabgleich).
+    Für eine genauere Bewertung inkl. Tonhöhen siehe README.md.
+  </footer>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
