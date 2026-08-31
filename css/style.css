@@ -213,6 +213,35 @@ button.action.ghost:hover:not(:disabled) { border-color: var(--stone); color: va
   margin-top: 8px;
 }
 
+.level-meter {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--stone-line);
+  overflow: hidden;
+  margin-top: 14px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.level-meter.show { opacity: 1; }
+
+.level-meter-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--seal);
+  border-radius: 4px;
+  transition: width 70ms linear;
+}
+
+button.action.record.recording {
+  animation: pulse-record 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-record {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(179, 59, 44, 0.35); }
+  50% { box-shadow: 0 0 0 7px rgba(179, 59, 44, 0); }
+}
+
 /* ---------- Ergebnis ---------- */
 
 .result {

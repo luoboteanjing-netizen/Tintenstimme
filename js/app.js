@@ -17,6 +17,9 @@ let vocab = loadVocab();
 let currentIndex = 0;
 let isRecording = false;
 let revealed = false;
+let levelRafId = null;
+let recordingStartedAt = null;
+let recordingTimerId = null;
 
 // ---- Elemente ----
 const el = {
@@ -34,6 +37,9 @@ const el = {
   recordBtn: document.getElementById('recordBtn'),
   retryBtn: document.getElementById('retryBtn'),
   statusLine: document.getElementById('statusLine'),
+
+  levelMeter: document.getElementById('levelMeter'),
+  levelFill: document.getElementById('levelFill'),
 
   resultBox: document.getElementById('resultBox'),
   scoreNum: document.getElementById('scoreNum'),
@@ -153,9 +159,15 @@ async function startRecording() {
     isRecording = true;
     el.recordBtn.textContent = '■ Aufnahme beenden';
     el.recordBtn.classList.add('recording');
-    el.statusLine.textContent = 'Aufnahme läuft — jetzt sprechen …';
     el.retryBtn.style.display = 'none';
     el.resultBox.classList.remove('show');
+
+    recordingStartedAt = Date.now();
+    updateRecordingStatus();
+    recordingTimerId = setInterval(updateRecordingStatus, 500);
+
+    el.levelMeter.classList.add('show');
+    startLevelLoop();
   } catch (e) {
     el.statusLine.textContent = 'Mikrofonzugriff nicht möglich: ' + (e.message || e);
   }
@@ -165,6 +177,13 @@ async function stopRecordingAndAssess() {
   isRecording = false;
   el.recordBtn.textContent = '● Aufnehmen';
   el.recordBtn.classList.remove('recording');
+
+  stopLevelLoop();
+  el.levelMeter.classList.remove('show');
+  el.levelFill.style.width = '0%';
+  clearInterval(recordingTimerId);
+  recordingTimerId = null;
+
   el.statusLine.textContent = 'Wird ausgewertet …';
 
   try {
@@ -179,6 +198,27 @@ async function stopRecordingAndAssess() {
     el.statusLine.textContent = '';
   } catch (e) {
     el.statusLine.textContent = 'Auswertung fehlgeschlagen: ' + (e.message || e);
+  }
+}
+
+function updateRecordingStatus() {
+  const seconds = Math.floor((Date.now() - recordingStartedAt) / 1000);
+  el.statusLine.textContent = `Aufnahme läuft — jetzt sprechen … (${seconds}s)`;
+}
+
+function startLevelLoop() {
+  const loop = () => {
+    const level = recorder.getLevel();
+    el.levelFill.style.width = `${Math.round(level * 100)}%`;
+    levelRafId = requestAnimationFrame(loop);
+  };
+  levelRafId = requestAnimationFrame(loop);
+}
+
+function stopLevelLoop() {
+  if (levelRafId) {
+    cancelAnimationFrame(levelRafId);
+    levelRafId = null;
   }
 }
 
