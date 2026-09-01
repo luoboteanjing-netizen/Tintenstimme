@@ -29,11 +29,24 @@ export class PronunciationAssessor {
  * "Hat die Spracherkennung verstanden, was gesagt werden sollte?"
  */
 export class WebSpeechAssessor extends PronunciationAssessor {
-  async assess({ expectedText, transcript, confidence, error }) {
+  async assess({ expectedText, transcript, confidence, error, resultReceived }) {
     const expected = normalize(expectedText);
     const got = normalize(transcript);
 
     if (!got) {
+      let note;
+      if (error) {
+        note = recognitionErrorMessage(error);
+      } else if (resultReceived) {
+        note =
+          'Die Spracherkennung hat geantwortet, aber nichts erkannt (leeres Ergebnis, kein Fehlercode). ' +
+          'Das deutet darauf hin, dass die Chinesisch-Erkennung auf diesem Gerät nicht zuverlässig funktioniert, ' +
+          'obwohl die Verbindung zum Dienst grundsätzlich klappt.';
+      } else {
+        note =
+          'Weder ein Ergebnis noch eine Fehlermeldung von der Spracherkennung erhalten. ' +
+          'Möglicherweise wurde die Erkennung beendet, bevor sie etwas verarbeiten konnte.';
+      }
       return {
         score: 0,
         similarity: 0,
@@ -41,9 +54,13 @@ export class WebSpeechAssessor extends PronunciationAssessor {
         transcript: got,
         diff: expected.split('').map((char) => ({ char, matched: false })),
         method: 'webspeech-text-match',
-        note: error
-          ? recognitionErrorMessage(error)
-          : 'Keine Spracherkennung möglich – bitte erneut versuchen oder lauter sprechen.',
+        note,
+        debug: {
+          rawTranscript: transcript || '',
+          confidence: typeof confidence === 'number' ? confidence : null,
+          error: error || null,
+          resultReceived: !!resultReceived,
+        },
       };
     }
 

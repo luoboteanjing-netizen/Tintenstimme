@@ -191,7 +191,7 @@ async function stopRecordingAndAssess() {
   el.statusLine.textContent = 'Wird ausgewertet …';
 
   try {
-    const { transcript, confidence, error, audioBlob } = await recorder.stop();
+    const { transcript, confidence, error, resultReceived, audioBlob } = await recorder.stop();
     storeRecordingForPlayback(audioBlob);
 
     const item = currentItem();
@@ -200,6 +200,7 @@ async function stopRecordingAndAssess() {
       transcript,
       confidence,
       error,
+      resultReceived,
     });
     showResult(result);
     el.statusLine.textContent = '';
@@ -267,8 +268,19 @@ function showResult(result) {
 
   el.resultTranscript.textContent = result.transcript
     ? `Erkannt: „${result.transcript}“${formatPinyinSuffix(result.transcript)}`
-    : result.note || 'Nichts erkannt.';
+    : formatEmptyResultText(result);
 }
+
+function formatEmptyResultText(result) {
+  const note = result.note || 'Nichts erkannt.';
+  if (!result.debug) return note;
+  const d = result.debug;
+  const debugText =
+    `[Debug] Ergebnis erhalten: ${d.resultReceived ? 'ja' : 'nein'}` +
+    ` · Fehlercode: ${d.error || 'keiner'}` +
+    ` · Rohtext: "${d.rawTranscript}"` +
+    ` · Konfidenz: ${d.confidence === null ? '–' : d.confidence.toFixed(2)}`;
+  return `${note}\n${debugText}`;
 
 function formatPinyinSuffix(text) {
   const py = pinyinOf(text);

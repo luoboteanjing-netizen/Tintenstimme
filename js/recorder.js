@@ -22,7 +22,7 @@ export class Recorder {
     this.stream = null;
     this.chunks = [];
     this.recognition = null;
-    this._recognitionResult = { transcript: '', confidence: 0, error: null };
+    this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false };
     this._recognitionEnded = true;
     this._recognitionEndPromise = Promise.resolve();
 
@@ -45,7 +45,7 @@ export class Recorder {
     }
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.chunks = [];
-    this._recognitionResult = { transcript: '', confidence: 0, error: null };
+    this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false };
 
     this.mediaRecorder = new MediaRecorder(this.stream);
     this.mediaRecorder.ondataavailable = (e) => {
@@ -79,8 +79,10 @@ export class Recorder {
     this.recognition.onresult = (event) => {
       const result = event.results[0][0];
       this._recognitionResult = {
+        ...this._recognitionResult,
         transcript: result.transcript,
         confidence: result.confidence,
+        resultReceived: true,
       };
     };
     // onerror wird festgehalten (nicht nur geloggt), damit die UI erklären
@@ -102,6 +104,7 @@ export class Recorder {
       this.recognition.start();
     } catch (e) {
       console.warn('Spracherkennung konnte nicht gestartet werden:', e);
+      this._recognitionResult = { ...this._recognitionResult, error: e.name || 'start-failed' };
       this._recognitionEnded = true;
       resolveEnd();
     }
