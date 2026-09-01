@@ -15,6 +15,10 @@
 // falls die Erkennung nicht schon vorher beendet war. Zusätzlich sorgt ein
 // Timeout dafür, dass stop() in keinem Fall unbegrenzt hängen bleibt.
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class Recorder {
   constructor({ lang = 'zh-CN' } = {}) {
     this.lang = lang;
@@ -39,76 +43,77 @@ export class Recorder {
     return 'mediaDevices' in navigator && 'MediaRecorder' in window;
   }
 
-async start() {
-  // Für reine SpeechRecognition brauchen wir keinen Stream-Speicher für MediaRecorder mehr
-  this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  this.chunks = [];
-  this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false, noMatch: false };
+  async start() {
+    // Für reine SpeechRecognition brauchen wir keinen Stream-Speicher für MediaRecorder mehr
+    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.chunks = [];
+    this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false, noMatch: false };
 
-  // Pegelanzeige (Web Audio API) bleibt aktiv
-  this._setupLevelMeter();
+    // Pegelanzeige (Web Audio API) bleibt aktiv
+    this._setupLevelMeter();
 
-  // Spracherkennung direkt starten
-  this._setupRecognition();
-}
-
-_setupRecognition() {
-  if (!this.supportsRecognition) {
-    this._recognitionEnded = true;
-    this._recognitionEndPromise = Promise.resolve();
-    return;
+    // Spracherkennung direkt starten
+    this._setupRecognition();
   }
 
-  this._recognitionEnded = false;
-  let resolveEnd;
-  this._recognitionEndPromise = new Promise((resolve) => {
-    resolveEnd = resolve;
-  });
+  _setupRecognition() {
+    if (!this.supportsRecognition) {
+      this._recognitionEnded = true;
+      this._recognitionEndPromise = Promise.resolve();
+      return;
+    }
 
-  const Impl = window.SpeechRecognition || window.webkitSpeechRecognition;
-  this.recognition = new Impl();
+    this._recognitionEnded = false;
+    let resolveEnd;
+    this._recognitionEndPromise = new Promise((resolve) => {
+      resolveEnd = resolve;
+    });
 
-  // Fallback für Android: Manchmal verlangen mobile Browser explizitere Sprach-Tags
-  this.recognition.lang = this.lang || 'zh-CN';
-  
-  // Wichtig für Android: continuous explizit auf false setzen
-  this.recognition.continuous = false;
-  this.recognition.interimResults = false;
-  this.recognition.maxAlternatives = 1;
+    const Impl = window.SpeechRecognition || window.webkitSpeechRecognition;
+    this.recognition = new Impl();
 
-  this.recognition.onresult = (event) => {
-    const result = event.results[0][0];
-    this._recognitionResult = {
-      ...this._recognitionResult,
-      transcript: result.transcript,
-      confidence: result.confidence,
-      resultReceived: true,
+    // Fallback für Android: Manchmal verlangen mobile Browser explizitere Sprach-Tags
+    this.recognition.lang = this.lang || 'zh-CN';
+
+    // Wichtig für Android: continuous explizit auf false setzen
+    this.recognition.continuous = false;
+    this.recognition.interimResults = false;
+    this.recognition.maxAlternatives = 1;
+
+    this.recognition.onresult = (event) => {
+      const result = event.results[0][0];
+      this._recognitionResult = {
+        ...this._recognitionResult,
+        transcript: result.transcript,
+        confidence: result.confidence,
+        resultReceived: true,
+      };
     };
-  };
 
-  this.recognition.onnomatch = () => {
-    this._recognitionResult = { ...this._recognitionResult, noMatch: true };
-  };
+    this.recognition.onnomatch = () => {
+      this._recognitionResult = { ...this._recognitionResult, noMatch: true };
+    };
 
-  this.recognition.onerror = (e) => {
-    console.warn('Spracherkennung Fehler:', e.error);
-    this._recognitionResult = { ...this._recognitionResult, error: e.error };
-  };
+    this.recognition.onerror = (e) => {
+      console.warn('Spracherkennung Fehler:', e.error);
+      this._recognitionResult = { ...this._recognitionResult, error: e.error };
+    };
 
-  this.recognition.onend = () => {
-    this._recognitionEnded = true;
-    resolveEnd();
-  };
+    this.recognition.onend = () => {
+      this._recognitionEnded = true;
+      resolveEnd();
+    };
 
-  try {
-    this.recognition.start();
-  } catch (e) {
-    console.warn('Spracherkennung konnte nicht gestartet werden:', e);
-    this._recognitionResult = { ...this._recognitionResult, error: e.name || 'start-failed' };
-    this._recognitionEnded = true;
-    resolveEnd();
+    try {
+      this.recognition.start();
+    } catch (e) {
+      console.warn('Spracherkennung konnte nicht gestartet werden:', e);
+      this._recognitionResult = { ...this._recognitionResult, error: e.name || 'start-failed' };
+      this._recognitionEnded = true;
+      resolveEnd();
+    }
   }
-}
+
   _setupLevelMeter() {
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -139,43 +144,40 @@ _setupRecognition() {
     return Math.min(1, rms * 4);
   }
 
-async stop() {
-  // Spracherkennung beenden, falls sie noch läuft
-  if (this.recognition && !this._recognitionEnded) {
-    try {
-      this.recognition.stop();
-    } catch (e) {
-      // Bereits beendet
+  async stop() {
+    // Spracherkennung beenden, falls sie noch läuft
+    if (this.recognition && !this._recognitionEnded) {
+      try {
+        this.recognition.stop();
+      } catch (e) {
+        // Bereits beendet
+      }
     }
+
+    // Warten, bis das finale Ergebnis oder der Timeout eintrifft
+    const recognitionEndedInTime = await Promise.race([
+      this._recognitionEndPromise.then(() => true),
+      delay(7000).then(() => false),
+    ]);
+
+    if (!recognitionEndedInTime && !this._recognitionResult.error) {
+      this._recognitionResult = { ...this._recognitionResult, error: 'timeout' };
+    }
+
+    // Mikrofon-Stream freigeben
+    if (this.stream) {
+      this.stream.getTracks().forEach((t) => t.stop());
+      this.stream = null;
+    }
+
+    // Web Audio Context schließen
+    if (this.audioContext) {
+      this.audioContext.close().catch(() => {});
+      this.audioContext = null;
+      this.analyser = null;
+    }
+
+    // Kein audioBlob mehr vorhanden (da MediaRecorder aus)
+    return { audioBlob: null, ...this._recognitionResult };
   }
-
-  // Warten, bis das finale Ergebnis oder der Timeout eintrifft
-  const recognitionEndedInTime = await Promise.race([
-    this._recognitionEndPromise.then(() => true),
-    delay(7000).then(() => false),
-  ]);
-
-  if (!recognitionEndedInTime && !this._recognitionResult.error) {
-    this._recognitionResult = { ...this._recognitionResult, error: 'timeout' };
-  }
-
-  // Mikrofon-Stream freigeben
-  if (this.stream) {
-    this.stream.getTracks().forEach((t) => t.stop());
-    this.stream = null;
-  }
-
-  // Web Audio Context schließen
-  if (this.audioContext) {
-    this.audioContext.close().catch(() => {});
-    this.audioContext = null;
-    this.analyser = null;
-  }
-
-  // Kein audioBlob mehr vorhanden (da MediaRecorder aus)
-  return { audioBlob: null, ...this._recognitionResult };
-}
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
