@@ -281,6 +281,7 @@ function formatEmptyResultText(result) {
     ` · Rohtext: "${d.rawTranscript}"` +
     ` · Konfidenz: ${d.confidence === null ? '–' : d.confidence.toFixed(2)}`;
   return `${note}\n${debugText}`;
+}
 
 function formatPinyinSuffix(text) {
   const py = pinyinOf(text);
