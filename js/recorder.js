@@ -40,26 +40,15 @@ export class Recorder {
   }
 
 async start() {
-  if (!this.supportsRecording) {
-    throw new Error('Mikrofonaufnahme wird von diesem Browser nicht unterstützt.');
-  }
-
-  // 1. Erst den MediaStream holen
+  // Für reine SpeechRecognition brauchen wir keinen Stream-Speicher für MediaRecorder mehr
   this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   this.chunks = [];
   this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false, noMatch: false };
 
-  // 2. MediaRecorder & Pegel starten
-  this.mediaRecorder = new MediaRecorder(this.stream);
-  this.mediaRecorder.ondataavailable = (e) => {
-    if (e.data && e.data.size > 0) this.chunks.push(e.data);
-  };
-  this.mediaRecorder.start();
+  // Pegelanzeige (Web Audio API) bleibt aktiv
   this._setupLevelMeter();
 
-  // 3. Auf Mobilgeräten (Android) benötigt SpeechRecognition ein minimales Delay,
-  // damit der Audio-Stream nicht blockiert wird.
-  await delay(150);
+  // Spracherkennung direkt starten
   this._setupRecognition();
 }
 
@@ -150,57 +139,41 @@ _setupRecognition() {
     return Math.min(1, rms * 4);
   }
 
-  async stop() {
-    if (!this.mediaRecorder) {
-      throw new Error('Aufnahme wurde nicht gestartet.');
+async stop() {
+  // Spracherkennung beenden, falls sie noch läuft
+  if (this.recognition && !this._recognitionEnded) {
+    try {
+      this.recognition.stop();
+    } catch (e) {
+      // Bereits beendet
     }
-
-    const stopRecording = new Promise((resolve) => {
-      this.mediaRecorder.onstop = () => {
-        const mimeType = this.mediaRecorder.mimeType || 'audio/webm';
-        const audioBlob = new Blob(this.chunks, { type: mimeType });
-        this.stream.getTracks().forEach((t) => t.stop());
-        resolve(audioBlob);
-      };
-      this.mediaRecorder.stop();
-    });
-
-    if (this.recognition && !this._recognitionEnded) {
-      try {
-        this.recognition.stop();
-      } catch (e) {
-        // Erkennung war offenbar schon beendet — kein Problem, der
-        // onend-Handler aus start() hat das bereits festgehalten.
-      }
-    }
-
-    // Sicherheits-Timeout: falls "onend" aus irgendeinem Grund nie feuert
-    // (z. B. weil der Spracherkennungsdienst auf diesem Gerät/Netzwerk gar
-    // nicht antwortet), darf die Auswertung trotzdem nicht für immer hängen
-    // bleiben. Etwas großzügiger bemessen (7s), damit langsamere mobile
-    // Verbindungen nicht fälschlich als "kein Ergebnis" gewertet werden.
-    const recognitionEndedInTime = await Promise.race([
-      this._recognitionEndPromise.then(() => true),
-      delay(7000).then(() => false),
-    ]);
-
-    if (!recognitionEndedInTime && !this._recognitionResult.error) {
-      // Weder Ergebnis noch Fehler kam an — das ist selbst eine
-      // diagnostisch wertvolle Information, deshalb explizit markiert
-      // statt stillschweigend als "nichts erkannt" durchzureichen.
-      this._recognitionResult = { ...this._recognitionResult, error: 'timeout' };
-    }
-
-    const audioBlob = await stopRecording;
-
-    if (this.audioContext) {
-      this.audioContext.close().catch(() => {});
-      this.audioContext = null;
-      this.analyser = null;
-    }
-
-    return { audioBlob, ...this._recognitionResult };
   }
+
+  // Warten, bis das finale Ergebnis oder der Timeout eintrifft
+  const recognitionEndedInTime = await Promise.race([
+    this._recognitionEndPromise.then(() => true),
+    delay(7000).then(() => false),
+  ]);
+
+  if (!recognitionEndedInTime && !this._recognitionResult.error) {
+    this._recognitionResult = { ...this._recognitionResult, error: 'timeout' };
+  }
+
+  // Mikrofon-Stream freigeben
+  if (this.stream) {
+    this.stream.getTracks().forEach((t) => t.stop());
+    this.stream = null;
+  }
+
+  // Web Audio Context schließen
+  if (this.audioContext) {
+    this.audioContext.close().catch(() => {});
+    this.audioContext = null;
+    this.analyser = null;
+  }
+
+  // Kein audioBlob mehr vorhanden (da MediaRecorder aus)
+  return { audioBlob: null, ...this._recognitionResult };
 }
 
 function delay(ms) {
