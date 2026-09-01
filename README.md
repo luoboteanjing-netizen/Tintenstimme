@@ -16,6 +16,17 @@ bewerten lassen. Kein Server, kein Build-Schritt, keine laufenden Kosten.
 - **Browser-Unterstützung:** `SpeechRecognition` ist derzeit im Wesentlichen nur in
   Chrome und Edge (Desktop und Android) verfügbar, nicht in Firefox oder Safari.
   Die App zeigt einen Hinweis an, wenn der Browser das nicht unterstützt.
+- **Bekannte Einschränkung auf Android:** Die Web Speech API hängt vom
+  Spracherkennungsdienst des Browsers/Betriebssystems ab. **Brave** blockiert
+  diesen Dienst grundsätzlich (Fehlercode `network`) — das ist ein seit Jahren
+  bestehendes, ungelöstes Brave-Problem, keine Einstellung in der App selbst.
+  Auch **Chrome auf Android** kann je nach Gerät fehlschlagen, wenn keine
+  Internetverbindung zum Google-Spracherkennungsdienst besteht oder Google-Dienste
+  auf dem Gerät fehlen (z. B. bei manchen Custom-ROMs). Die App zeigt in diesem
+  Fall den genauen Fehlercode des Browsers an. Das ist einer der Gründe, warum
+  Variante 2 (Azure, siehe unten) langfristig zuverlässiger ist: dort wird die
+  Audiodatei direkt an einen Cloud-Dienst geschickt, statt sich auf die
+  eingebaute Spracherkennung von Browser/Betriebssystem zu verlassen.
 - **Pinyin-Anzeige:** Der erkannte Text wird zusätzlich mit Tonzeichen als Pinyin
   angezeigt, umgewandelt über die Bibliothek [pinyin-pro](https://pinyin-pro.cn)
   (per CDN eingebunden, keine Installation nötig).

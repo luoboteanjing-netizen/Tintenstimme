@@ -29,7 +29,7 @@ export class PronunciationAssessor {
  * "Hat die Spracherkennung verstanden, was gesagt werden sollte?"
  */
 export class WebSpeechAssessor extends PronunciationAssessor {
-  async assess({ expectedText, transcript, confidence }) {
+  async assess({ expectedText, transcript, confidence, error }) {
     const expected = normalize(expectedText);
     const got = normalize(transcript);
 
@@ -41,7 +41,9 @@ export class WebSpeechAssessor extends PronunciationAssessor {
         transcript: got,
         diff: expected.split('').map((char) => ({ char, matched: false })),
         method: 'webspeech-text-match',
-        note: 'Keine Spracherkennung möglich – bitte erneut versuchen oder lauter sprechen.',
+        note: error
+          ? recognitionErrorMessage(error)
+          : 'Keine Spracherkennung möglich – bitte erneut versuchen oder lauter sprechen.',
       };
     }
 
@@ -107,6 +109,32 @@ export class AzurePronunciationAssessor extends PronunciationAssessor {
 }
 
 // ---- Hilfsfunktionen ----
+
+// Übersetzt die von der Web Speech API gemeldeten Fehlercodes in eine
+// verständliche, handlungsorientierte Meldung für die Nutzer:innen.
+export function recognitionErrorMessage(code) {
+  switch (code) {
+    case 'network':
+      return 'Der Browser konnte den Spracherkennungsdienst nicht erreichen (Fehlercode "network"). ' +
+        'Bei Brave ist das ein bekanntes, dauerhaftes Problem, da Brave den Google-Spracherkennungsdienst ' +
+        'standardmäßig blockiert – dort hilft nur, testweise Chrome zu verwenden. ' +
+        'Bei Chrome kann das an fehlender Internetverbindung oder fehlenden Google-Diensten auf dem Gerät liegen.';
+    case 'not-allowed':
+    case 'service-not-allowed':
+      return 'Der Zugriff auf die Spracherkennung wurde verweigert (Fehlercode "' + code + '"). ' +
+        'Bitte in den Android-Systemeinstellungen prüfen, ob der Browser Mikrofonzugriff hat, und die Seite neu laden.';
+    case 'audio-capture':
+      return 'Es wurde kein Mikrofon für die Spracherkennung gefunden (Fehlercode "audio-capture").';
+    case 'language-not-supported':
+      return 'Chinesisch (zh-CN) wird von der Spracherkennung dieses Geräts nicht unterstützt.';
+    case 'no-speech':
+      return 'Es wurde keine Sprache erkannt — bitte lauter oder direkter ins Mikrofon sprechen.';
+    default:
+      return code
+        ? `Spracherkennung fehlgeschlagen (Fehlercode "${code}").`
+        : 'Keine Spracherkennung möglich – bitte erneut versuchen oder lauter sprechen.';
+  }
+}
 
 function normalize(text) {
   return (text || '')

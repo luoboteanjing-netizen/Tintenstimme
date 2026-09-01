@@ -187,12 +187,13 @@ async function stopRecordingAndAssess() {
   el.statusLine.textContent = 'Wird ausgewertet …';
 
   try {
-    const { transcript, confidence } = await recorder.stop();
+    const { transcript, confidence, error } = await recorder.stop();
     const item = currentItem();
     const result = await assessor.assess({
       expectedText: item.hanzi,
       transcript,
       confidence,
+      error,
     });
     showResult(result);
     el.statusLine.textContent = '';

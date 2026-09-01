@@ -22,7 +22,7 @@ export class Recorder {
     this.stream = null;
     this.chunks = [];
     this.recognition = null;
-    this._recognitionResult = { transcript: '', confidence: 0 };
+    this._recognitionResult = { transcript: '', confidence: 0, error: null };
     this._recognitionEnded = true;
     this._recognitionEndPromise = Promise.resolve();
 
@@ -45,7 +45,7 @@ export class Recorder {
     }
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.chunks = [];
-    this._recognitionResult = { transcript: '', confidence: 0 };
+    this._recognitionResult = { transcript: '', confidence: 0, error: null };
 
     this.mediaRecorder = new MediaRecorder(this.stream);
     this.mediaRecorder.ondataavailable = (e) => {
@@ -83,9 +83,14 @@ export class Recorder {
         confidence: result.confidence,
       };
     };
-    // onerror bewusst nur geloggt: Aufnahme soll trotzdem weiterlaufen,
-    // die Bewertung fällt dann eben auf "keine Erkennung" zurück.
-    this.recognition.onerror = (e) => console.warn('Spracherkennung: ', e.error);
+    // onerror wird festgehalten (nicht nur geloggt), damit die UI erklären
+    // kann, WARUM nichts erkannt wurde — z. B. weil der Browser/das Gerät
+    // keinen Zugriff auf den Spracherkennungsdienst hat (u. a. bei Brave
+    // und manchen Android-Konfigurationen typisch: Fehlercode "network").
+    this.recognition.onerror = (e) => {
+      console.warn('Spracherkennung: ', e.error);
+      this._recognitionResult = { ...this._recognitionResult, error: e.error };
+    };
     // Entscheidend: dieser Handler ist von Anfang an aktiv, egal ob die
     // Erkennung durch stop() oder von selbst (Stille/Timeout) endet.
     this.recognition.onend = () => {
