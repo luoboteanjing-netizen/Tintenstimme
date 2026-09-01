@@ -129,6 +129,10 @@ export function recognitionErrorMessage(code) {
       return 'Chinesisch (zh-CN) wird von der Spracherkennung dieses Geräts nicht unterstützt.';
     case 'no-speech':
       return 'Es wurde keine Sprache erkannt — bitte lauter oder direkter ins Mikrofon sprechen.';
+    case 'timeout':
+      return 'Der Spracherkennungsdienst hat gar nicht geantwortet (weder Ergebnis noch Fehlermeldung, ' +
+        'Zeitüberschreitung nach 7 Sekunden). Das deutet stark auf ein Verbindungsproblem zum ' +
+        'Google-Spracherkennungsdienst auf diesem Gerät/Netzwerk hin — die App selbst kann das nicht beheben.';
     default:
       return code
         ? `Spracherkennung fehlgeschlagen (Fehlercode "${code}").`

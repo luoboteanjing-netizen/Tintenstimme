@@ -161,11 +161,24 @@ export class Recorder {
       }
     }
 
-    // Sicherheits-Timeout: falls "onend" aus irgendeinem Grund nie feuert,
-    // darf die Auswertung trotzdem nicht für immer hängen bleiben.
-    const recognitionWithTimeout = Promise.race([this._recognitionEndPromise, delay(4000)]);
+    // Sicherheits-Timeout: falls "onend" aus irgendeinem Grund nie feuert
+    // (z. B. weil der Spracherkennungsdienst auf diesem Gerät/Netzwerk gar
+    // nicht antwortet), darf die Auswertung trotzdem nicht für immer hängen
+    // bleiben. Etwas großzügiger bemessen (7s), damit langsamere mobile
+    // Verbindungen nicht fälschlich als "kein Ergebnis" gewertet werden.
+    const recognitionEndedInTime = await Promise.race([
+      this._recognitionEndPromise.then(() => true),
+      delay(7000).then(() => false),
+    ]);
 
-    const [audioBlob] = await Promise.all([stopRecording, recognitionWithTimeout]);
+    if (!recognitionEndedInTime && !this._recognitionResult.error) {
+      // Weder Ergebnis noch Fehler kam an — das ist selbst eine
+      // diagnostisch wertvolle Information, deshalb explizit markiert
+      // statt stillschweigend als "nichts erkannt" durchzureichen.
+      this._recognitionResult = { ...this._recognitionResult, error: 'timeout' };
+    }
+
+    const audioBlob = await stopRecording;
 
     if (this.audioContext) {
       this.audioContext.close().catch(() => {});

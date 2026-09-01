@@ -20,6 +20,8 @@ let revealed = false;
 let levelRafId = null;
 let recordingStartedAt = null;
 let recordingTimerId = null;
+let lastRecordingUrl = null;
+const recordingPlayer = new Audio();
 
 // ---- Elemente ----
 const el = {
@@ -35,6 +37,7 @@ const el = {
 
   playBtn: document.getElementById('playBtn'),
   recordBtn: document.getElementById('recordBtn'),
+  playRecordingBtn: document.getElementById('playRecordingBtn'),
   retryBtn: document.getElementById('retryBtn'),
   statusLine: document.getElementById('statusLine'),
 
@@ -160,6 +163,7 @@ async function startRecording() {
     el.recordBtn.textContent = '■ Aufnahme beenden';
     el.recordBtn.classList.add('recording');
     el.retryBtn.style.display = 'none';
+    el.playRecordingBtn.style.display = 'none';
     el.resultBox.classList.remove('show');
 
     recordingStartedAt = Date.now();
@@ -187,7 +191,9 @@ async function stopRecordingAndAssess() {
   el.statusLine.textContent = 'Wird ausgewertet …';
 
   try {
-    const { transcript, confidence, error } = await recorder.stop();
+    const { transcript, confidence, error, audioBlob } = await recorder.stop();
+    storeRecordingForPlayback(audioBlob);
+
     const item = currentItem();
     const result = await assessor.assess({
       expectedText: item.hanzi,
@@ -201,6 +207,28 @@ async function stopRecordingAndAssess() {
     el.statusLine.textContent = 'Auswertung fehlgeschlagen: ' + (e.message || e);
   }
 }
+
+function storeRecordingForPlayback(audioBlob) {
+  if (lastRecordingUrl) {
+    URL.revokeObjectURL(lastRecordingUrl);
+    lastRecordingUrl = null;
+  }
+  if (audioBlob && audioBlob.size > 0) {
+    lastRecordingUrl = URL.createObjectURL(audioBlob);
+    el.playRecordingBtn.style.display = 'inline-flex';
+  } else {
+    el.playRecordingBtn.style.display = 'none';
+  }
+}
+
+el.playRecordingBtn.addEventListener('click', () => {
+  if (!lastRecordingUrl) return;
+  recordingPlayer.src = lastRecordingUrl;
+  recordingPlayer.currentTime = 0;
+  recordingPlayer.play().catch((e) => {
+    el.statusLine.textContent = 'Wiedergabe nicht möglich: ' + (e.message || e);
+  });
+});
 
 function updateRecordingStatus() {
   const seconds = Math.floor((Date.now() - recordingStartedAt) / 1000);
@@ -267,7 +295,12 @@ function feedbackFor(score) {
 function resetResult() {
   el.resultBox.classList.remove('show');
   el.retryBtn.style.display = 'none';
+  el.playRecordingBtn.style.display = 'none';
   el.statusLine.textContent = '';
+  if (lastRecordingUrl) {
+    URL.revokeObjectURL(lastRecordingUrl);
+    lastRecordingUrl = null;
+  }
 }
 
 function escapeHtml(s) {
