@@ -61,6 +61,7 @@ const el = {
   importBtn: document.getElementById('importBtn'),
   exportBtn: document.getElementById('exportBtn'),
   vocabList: document.getElementById('vocabList'),
+  recognitionLangSelect: document.getElementById('recognitionLangSelect'),
 };
 
 // ---- Tabs ----
@@ -72,6 +73,16 @@ el.tabs.forEach((btn) => {
     el.views.forEach((v) => v.classList.toggle('active', v.id === `view-${target}`));
     if (target === 'vocab') renderVocabList();
   });
+});
+
+// ---- Sprachcode für die Erkennung (zum Testen verschiedener Tags) ----
+const LANG_STORAGE_KEY = 'caa_recognition_lang_v1';
+el.recognitionLangSelect.value = localStorage.getItem(LANG_STORAGE_KEY) || 'zh-CN';
+recorder.lang = el.recognitionLangSelect.value;
+
+el.recognitionLangSelect.addEventListener('change', () => {
+  recorder.lang = el.recognitionLangSelect.value;
+  localStorage.setItem(LANG_STORAGE_KEY, el.recognitionLangSelect.value);
 });
 
 // ---- Browser-Fähigkeiten prüfen ----
@@ -277,7 +288,8 @@ function formatEmptyResultText(result) {
   if (!result.debug) return note;
   const d = result.debug;
   const debugText =
-    `[Debug] Ergebnis erhalten: ${d.resultReceived ? 'ja' : 'nein'}` +
+    `[Debug] Sprachcode: ${el.recognitionLangSelect.value}` +
+    ` · Ergebnis erhalten: ${d.resultReceived ? 'ja' : 'nein'}` +
     ` · Kein Treffer (nomatch): ${d.noMatch ? 'ja' : 'nein'}` +
     ` · Fehlercode: ${d.error || 'keiner'}` +
     ` · Rohtext: "${d.rawTranscript}"` +

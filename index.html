@@ -42,6 +42,17 @@
       <p class="translation-line" id="translationLine"></p>
       <button class="reveal-toggle" id="revealToggle">Pinyin &amp; Übersetzung anzeigen</button>
 
+      <div class="lang-select-row">
+        <label for="recognitionLangSelect">Sprachcode für Erkennung (zum Testen):</label>
+        <select id="recognitionLangSelect">
+          <option value="zh-CN">zh-CN (Standard)</option>
+          <option value="cmn-Hans-CN">cmn-Hans-CN (Mandarin, Simplified, CN)</option>
+          <option value="zh">zh (nur Sprachkürzel)</option>
+          <option value="zh-Hans">zh-Hans</option>
+          <option value="cmn">cmn</option>
+        </select>
+      </div>
+
       <div class="controls-row">
         <button class="action primary" id="playBtn">▶ Anhören</button>
         <button class="action record" id="recordBtn">● Aufnehmen</button>
