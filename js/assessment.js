@@ -29,7 +29,7 @@ export class PronunciationAssessor {
  * "Hat die Spracherkennung verstanden, was gesagt werden sollte?"
  */
 export class WebSpeechAssessor extends PronunciationAssessor {
-  async assess({ expectedText, transcript, confidence, error, resultReceived }) {
+  async assess({ expectedText, transcript, confidence, error, resultReceived, noMatch }) {
     const expected = normalize(expectedText);
     const got = normalize(transcript);
 
@@ -37,6 +37,12 @@ export class WebSpeechAssessor extends PronunciationAssessor {
       let note;
       if (error) {
         note = recognitionErrorMessage(error);
+      } else if (noMatch) {
+        note =
+          'Der Dienst hat Sprache registriert, konnte sie aber keinem Text zuordnen ("kein Treffer", ' +
+          'Event onnomatch — kein Fehler, kein Timeout). Das ist ein typisches Zeichen dafür, dass die ' +
+          'eingebaute Spracherkennung dieses Geräts Chinesisch nicht zuverlässig genug erkennt, unabhängig ' +
+          'von Lautstärke oder Aussprache.';
       } else if (resultReceived) {
         note =
           'Die Spracherkennung hat geantwortet, aber nichts erkannt (leeres Ergebnis, kein Fehlercode). ' +
@@ -60,6 +66,7 @@ export class WebSpeechAssessor extends PronunciationAssessor {
           confidence: typeof confidence === 'number' ? confidence : null,
           error: error || null,
           resultReceived: !!resultReceived,
+          noMatch: !!noMatch,
         },
       };
     }

@@ -191,7 +191,7 @@ async function stopRecordingAndAssess() {
   el.statusLine.textContent = 'Wird ausgewertet …';
 
   try {
-    const { transcript, confidence, error, resultReceived, audioBlob } = await recorder.stop();
+    const { transcript, confidence, error, resultReceived, noMatch, audioBlob } = await recorder.stop();
     storeRecordingForPlayback(audioBlob);
 
     const item = currentItem();
@@ -201,6 +201,7 @@ async function stopRecordingAndAssess() {
       confidence,
       error,
       resultReceived,
+      noMatch,
     });
     showResult(result);
     el.statusLine.textContent = '';
@@ -277,6 +278,7 @@ function formatEmptyResultText(result) {
   const d = result.debug;
   const debugText =
     `[Debug] Ergebnis erhalten: ${d.resultReceived ? 'ja' : 'nein'}` +
+    ` · Kein Treffer (nomatch): ${d.noMatch ? 'ja' : 'nein'}` +
     ` · Fehlercode: ${d.error || 'keiner'}` +
     ` · Rohtext: "${d.rawTranscript}"` +
     ` · Konfidenz: ${d.confidence === null ? '–' : d.confidence.toFixed(2)}`;

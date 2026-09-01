@@ -22,7 +22,7 @@ export class Recorder {
     this.stream = null;
     this.chunks = [];
     this.recognition = null;
-    this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false };
+    this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false, noMatch: false };
     this._recognitionEnded = true;
     this._recognitionEndPromise = Promise.resolve();
 
@@ -45,7 +45,7 @@ export class Recorder {
     }
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.chunks = [];
-    this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false };
+    this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false, noMatch: false };
 
     this.mediaRecorder = new MediaRecorder(this.stream);
     this.mediaRecorder.ondataavailable = (e) => {
@@ -84,6 +84,13 @@ export class Recorder {
         confidence: result.confidence,
         resultReceived: true,
       };
+    };
+    // onnomatch: eigenes Event, wenn Audio erkannt, aber keinem Text
+    // zugeordnet werden konnte — weder Ergebnis noch Fehler, aber eine
+    // eigene, aussagekräftige Information. Bisher nicht abgefangen, was
+    // dazu führte, dass dieser Fall wie "keine Antwort" aussah.
+    this.recognition.onnomatch = () => {
+      this._recognitionResult = { ...this._recognitionResult, noMatch: true };
     };
     // onerror wird festgehalten (nicht nur geloggt), damit die UI erklären
     // kann, WARUM nichts erkannt wurde — z. B. weil der Browser/das Gerät
