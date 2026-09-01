@@ -39,84 +39,87 @@ export class Recorder {
     return 'mediaDevices' in navigator && 'MediaRecorder' in window;
   }
 
-  async start() {
-    if (!this.supportsRecording) {
-      throw new Error('Mikrofonaufnahme wird von diesem Browser nicht unterstützt.');
-    }
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    this.chunks = [];
-    this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false, noMatch: false };
-
-    this.mediaRecorder = new MediaRecorder(this.stream);
-    this.mediaRecorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) this.chunks.push(e.data);
-    };
-    this.mediaRecorder.start();
-
-    this._setupLevelMeter();
-    this._setupRecognition();
+async start() {
+  if (!this.supportsRecording) {
+    throw new Error('Mikrofonaufnahme wird von diesem Browser nicht unterstützt.');
   }
 
-  _setupRecognition() {
-    if (!this.supportsRecognition) {
-      this._recognitionEnded = true;
-      this._recognitionEndPromise = Promise.resolve();
-      return;
-    }
+  // 1. Erst den MediaStream holen
+  this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  this.chunks = [];
+  this._recognitionResult = { transcript: '', confidence: 0, error: null, resultReceived: false, noMatch: false };
 
-    this._recognitionEnded = false;
-    let resolveEnd;
-    this._recognitionEndPromise = new Promise((resolve) => {
-      resolveEnd = resolve;
-    });
+  // 2. MediaRecorder & Pegel starten
+  this.mediaRecorder = new MediaRecorder(this.stream);
+  this.mediaRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) this.chunks.push(e.data);
+  };
+  this.mediaRecorder.start();
+  this._setupLevelMeter();
 
-    const Impl = window.SpeechRecognition || window.webkitSpeechRecognition;
-    this.recognition = new Impl();
-    this.recognition.lang = this.lang;
-    this.recognition.interimResults = false;
-    this.recognition.maxAlternatives = 1;
+  // 3. Auf Mobilgeräten (Android) benötigt SpeechRecognition ein minimales Delay,
+  // damit der Audio-Stream nicht blockiert wird.
+  await delay(150);
+  this._setupRecognition();
+}
 
-    this.recognition.onresult = (event) => {
-      const result = event.results[0][0];
-      this._recognitionResult = {
-        ...this._recognitionResult,
-        transcript: result.transcript,
-        confidence: result.confidence,
-        resultReceived: true,
-      };
-    };
-    // onnomatch: eigenes Event, wenn Audio erkannt, aber keinem Text
-    // zugeordnet werden konnte — weder Ergebnis noch Fehler, aber eine
-    // eigene, aussagekräftige Information. Bisher nicht abgefangen, was
-    // dazu führte, dass dieser Fall wie "keine Antwort" aussah.
-    this.recognition.onnomatch = () => {
-      this._recognitionResult = { ...this._recognitionResult, noMatch: true };
-    };
-    // onerror wird festgehalten (nicht nur geloggt), damit die UI erklären
-    // kann, WARUM nichts erkannt wurde — z. B. weil der Browser/das Gerät
-    // keinen Zugriff auf den Spracherkennungsdienst hat (u. a. bei Brave
-    // und manchen Android-Konfigurationen typisch: Fehlercode "network").
-    this.recognition.onerror = (e) => {
-      console.warn('Spracherkennung: ', e.error);
-      this._recognitionResult = { ...this._recognitionResult, error: e.error };
-    };
-    // Entscheidend: dieser Handler ist von Anfang an aktiv, egal ob die
-    // Erkennung durch stop() oder von selbst (Stille/Timeout) endet.
-    this.recognition.onend = () => {
-      this._recognitionEnded = true;
-      resolveEnd();
-    };
-
-    try {
-      this.recognition.start();
-    } catch (e) {
-      console.warn('Spracherkennung konnte nicht gestartet werden:', e);
-      this._recognitionResult = { ...this._recognitionResult, error: e.name || 'start-failed' };
-      this._recognitionEnded = true;
-      resolveEnd();
-    }
+_setupRecognition() {
+  if (!this.supportsRecognition) {
+    this._recognitionEnded = true;
+    this._recognitionEndPromise = Promise.resolve();
+    return;
   }
 
+  this._recognitionEnded = false;
+  let resolveEnd;
+  this._recognitionEndPromise = new Promise((resolve) => {
+    resolveEnd = resolve;
+  });
+
+  const Impl = window.SpeechRecognition || window.webkitSpeechRecognition;
+  this.recognition = new Impl();
+
+  // Fallback für Android: Manchmal verlangen mobile Browser explizitere Sprach-Tags
+  this.recognition.lang = this.lang || 'zh-CN';
+  
+  // Wichtig für Android: continuous explizit auf false setzen
+  this.recognition.continuous = false;
+  this.recognition.interimResults = false;
+  this.recognition.maxAlternatives = 1;
+
+  this.recognition.onresult = (event) => {
+    const result = event.results[0][0];
+    this._recognitionResult = {
+      ...this._recognitionResult,
+      transcript: result.transcript,
+      confidence: result.confidence,
+      resultReceived: true,
+    };
+  };
+
+  this.recognition.onnomatch = () => {
+    this._recognitionResult = { ...this._recognitionResult, noMatch: true };
+  };
+
+  this.recognition.onerror = (e) => {
+    console.warn('Spracherkennung Fehler:', e.error);
+    this._recognitionResult = { ...this._recognitionResult, error: e.error };
+  };
+
+  this.recognition.onend = () => {
+    this._recognitionEnded = true;
+    resolveEnd();
+  };
+
+  try {
+    this.recognition.start();
+  } catch (e) {
+    console.warn('Spracherkennung konnte nicht gestartet werden:', e);
+    this._recognitionResult = { ...this._recognitionResult, error: e.name || 'start-failed' };
+    this._recognitionEnded = true;
+    resolveEnd();
+  }
+}
   _setupLevelMeter() {
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
